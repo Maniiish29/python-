@@ -1,1 +1,136 @@
+import tkinter as tk
+from tkinter import messagebox, ttk
+import pandas as pd
+import os
+import ctypes
 
+# Sharp UI for High-Resolution screens
+try:
+    ctypes.windll.shcore.SetProcessDpiAwareness(1)
+except Exception:
+    pass
+
+class CollegePortal:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("STCET - Student Enrollment Portal")
+        self.root.geometry("600x700")
+        self.root.configure(bg="#ffffff")
+        
+        self.excel_file = "STCET_Student_Records.xlsx"
+        
+        # Style Configuration
+        self.style = ttk.Style()
+        self.style.configure("TButton", font=("Helvetica", 10))
+        self.style.configure("Header.TLabel", font=("Helvetica", 16, "bold"), background="#ffffff")
+        
+        self.container = tk.Frame(self.root, bg="#ffffff")
+        self.container.pack(fill="both", expand=True, padx=40, pady=30)
+        
+        self.show_home_page()
+
+    def clear_frame(self):
+        for widget in self.container.winfo_children():
+            widget.destroy()
+
+    # --- PAGE 1: COLLEGE INFO & ACCESS ---
+    def show_home_page(self):
+        self.clear_frame()
+        
+        # Header Info (STCET Specific)
+        tk.Label(self.container, text="STCET", font=("Helvetica", 24, "bold"), bg="#ffffff", fg="#003366").pack(pady=(0, 5))
+        tk.Label(self.container, text="St. Thomas' College of Engineering and Technology", font=("Helvetica", 10), bg="#ffffff", fg="#666666").pack()
+        tk.Label(self.container, text="Address: 4, Diamond Harbour Rd, Alipore, Kolkata", font=("Helvetica", 9), bg="#ffffff", fg="#888888").pack(pady=(0, 20))
+        
+        # About Section
+        about_text = "About: A premier institute dedicated to excellence in Engineering and Technology education."
+        tk.Label(self.container, text=about_text, wraplength=450, font=("Helvetica", 10, "italic"), bg="#f9f9f9", padx=10, pady=10).pack(pady=10)
+        
+        # Entry Logic
+        tk.Label(self.container, text="Enter Admission Number to Proceed:", font=("Helvetica", 11), bg="#ffffff").pack(pady=(20, 5))
+        self.admin_no_var = tk.StringVar()
+        entry = tk.Entry(self.container, textvariable=self.admin_no_var, font=("Helvetica", 12), bd=2, relief="groove", width=25, justify="center")
+        entry.pack(pady=5)
+        
+        # Action Buttons
+        btn_frame = tk.Frame(self.container, bg="#ffffff")
+        btn_frame.pack(pady=30)
+        
+        tk.Button(btn_frame, text="CONTINUE", command=self.go_to_details, bg="#003366", fg="white", font=("Helvetica", 10, "bold"), width=15, height=2).grid(row=0, column=0, padx=10)
+        tk.Button(btn_frame, text="VIEW RECORDS", command=self.view_excel, bg="#f0f0f0", fg="#333333", font=("Helvetica", 10), width=15, height=2).grid(row=0, column=1, padx=10)
+
+    # --- PAGE 2: STUDENT ENROLLMENT ---
+    def show_student_form(self):
+        self.clear_frame()
+        tk.Label(self.container, text="STUDENT ENROLLMENT", font=("Helvetica", 16, "bold"), bg="#ffffff", fg="#003366").pack(pady=(0, 20))
+        
+        fields = [
+            ("Full Name", "name"),
+            ("Gmail Address", "email"),
+            ("Phone Number", "phone"),
+            ("Residential Address", "address"),
+            ("Class 10th Score (%)", "tenth"),
+            ("Class 12th Score (%)", "twelfth")
+        ]
+        
+        self.inputs = {}
+        for label_text, key in fields:
+            frame = tk.Frame(self.container, bg="#ffffff")
+            frame.pack(fill="x", pady=5)
+            tk.Label(frame, text=label_text, font=("Helvetica", 10), bg="#ffffff", fg="#444444").pack(anchor="w")
+            entry = tk.Entry(frame, font=("Helvetica", 11), bd=1, relief="solid")
+            entry.pack(fill="x", pady=2)
+            self.inputs[key] = entry
+
+        # Submit
+        tk.Button(self.container, text="SAVE & SUBMIT RECORD", command=self.save_to_excel, bg="#28a745", fg="white", font=("Helvetica", 11, "bold"), pady=10).pack(fill="x", pady=30)
+        tk.Button(self.container, text="← Back to Home", command=self.show_home_page, bd=0, bg="#ffffff", fg="#003366", cursor="hand2").pack()
+
+    # --- LOGIC ---
+    def go_to_details(self):
+        if self.admin_no_var.get().strip():
+            self.show_student_form()
+        else:
+            messagebox.showwarning("Access Denied", "Please enter a valid Admission Number to continue.")
+
+    def save_to_excel(self):
+        # Validate that all fields are filled
+        if any(not entry.get().strip() for entry in self.inputs.values()):
+            messagebox.showerror("Error", "All fields are required.")
+            return
+
+        data = {
+            "Admission No": self.admin_no_var.get(),
+            "Name": self.inputs["name"].get(),
+            "Email": self.inputs["email"].get(),
+            "Phone": self.inputs["phone"].get(),
+            "Address": self.inputs["address"].get(),
+            "10th %": self.inputs["tenth"].get(),
+            "12th %": self.inputs["twelfth"].get()
+        }
+
+        df_new = pd.DataFrame([data])
+
+        try:
+            if not os.path.isfile(self.excel_file):
+                df_new.to_excel(self.excel_file, index=False)
+            else:
+                df_existing = pd.read_excel(self.excel_file)
+                df_final = pd.concat([df_existing, df_new], ignore_index=True)
+                df_final.to_excel(self.excel_file, index=False)
+            
+            messagebox.showinfo("Success", f"Record for {data['Name']} saved successfully!")
+            self.show_home_page()
+        except Exception as e:
+            messagebox.showerror("File Error", f"Could not save file. Make sure {self.excel_file} is closed.\nError: {e}")
+
+    def view_excel(self):
+        if os.path.exists(self.excel_file):
+            os.startfile(self.excel_file)
+        else:
+            messagebox.showinfo("No Data", "No student records found yet. Please submit a form first.")
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = CollegePortal(root)
+    root.mainloop()
